@@ -1,0 +1,8 @@
+pandas
+numpy
+Pillow
+matplotlib
+imagesize
+sklearn
+torch
+transformers
