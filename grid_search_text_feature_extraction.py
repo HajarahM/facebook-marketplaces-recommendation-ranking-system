@@ -65,10 +65,10 @@ from sklearn.pipeline import Pipeline
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
 # Load some categories from the training set
-categories = [
-    "alt.atheism",
-    "talk.religion.misc",
-]
+# categories = [
+#     "alt.atheism",
+#     "talk.religion.misc",
+# ]
 
 # Uncomment the following to do the analysis on all the categories
 categories = None
@@ -90,7 +90,7 @@ pipeline = Pipeline(
     [
         ("vect", CountVectorizer()),
         ("tfidf", TfidfTransformer()),
-        ("clf", SGDClassifier()),
+        #("clf", SGDClassifier()),
     ]
 )
 
@@ -101,11 +101,11 @@ parameters = {
     "vect__max_df": (0.5, 0.75, 1.0),
     # 'vect__max_features': (None, 5000, 10000, 50000),
     "vect__ngram_range": ((1, 1), (1, 2)),  # unigrams or bigrams
-    # 'tfidf__use_idf': (True, False),
-    # 'tfidf__norm': ('l1', 'l2'),
-    "clf__max_iter": (20,),
-    "clf__alpha": (0.00001, 0.000001),
-    "clf__penalty": ("l2", "elasticnet"),
+    'tfidf__use_idf': (True, False),
+    'tfidf__norm': ('l1', 'l2'),
+    # "clf__max_iter": (20,),
+    # "clf__alpha": (0.00001, 0.000001),
+    # "clf__penalty": ("l2", "elasticnet"),
     # 'clf__max_iter': (10, 50, 80),
 }
 
