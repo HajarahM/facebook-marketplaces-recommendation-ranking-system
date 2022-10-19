@@ -1,6 +1,6 @@
 """
 ==========================================================
-Sample pipeline for text feature extraction and evaluation
+Pipeline for text feature extraction and evaluation
 ==========================================================
 
 The dataset used in this example is the 20 newsgroups dataset which will be
@@ -53,8 +53,10 @@ Here is a sample output of a run on a quad-core machine::
 from pprint import pprint
 from time import time
 import logging
-
-from sklearn.datasets import fetch_20newsgroups
+import torch
+import os
+import pandas as pd
+# from sklearn.datasets import fetch_20newsgroups
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.linear_model import SGDClassifier
@@ -64,19 +66,27 @@ from sklearn.pipeline import Pipeline
 # Display progress logs on stdout
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
+# get training set
+root_dir: str = 'Products.csv'
+if not os.path.exists(root_dir):
+    raise FileNotFoundError(f"The file {root_dir} does not exist")
+products = pd.read_csv(root_dir, lineterminator='\n')
+
 # Load some categories from the training set
-# categories = [
-#     "alt.atheism",
-#     "talk.religion.misc",
-# ]
+categories = [
+    products['product_name'],
+    products['category'],
+    products['product_description'],
+    products['location']
+]
 
 # Uncomment the following to do the analysis on all the categories
-categories = None
+# categories = None
 
-print("Loading 20 newsgroups dataset for categories:")
+print("Loading Products dataset for categories:")
 print(categories)
 
-data = fetch_20newsgroups(subset="train", categories=categories)
+data = products(subset="train", categories=categories)
 print("%d documents" % len(data.filenames))
 print("%d categories" % len(data.target_names))
 print()
@@ -90,7 +100,7 @@ pipeline = Pipeline(
     [
         ("vect", CountVectorizer()),
         ("tfidf", TfidfTransformer()),
-        #("clf", SGDClassifier()),
+        ("clf", SGDClassifier()),
     ]
 )
 
@@ -99,14 +109,14 @@ pipeline = Pipeline(
 # way
 parameters = {
     "vect__max_df": (0.5, 0.75, 1.0),
-    # 'vect__max_features': (None, 5000, 10000, 50000),
+    'vect__max_features': (None, 5000, 10000, 50000),
     "vect__ngram_range": ((1, 1), (1, 2)),  # unigrams or bigrams
     'tfidf__use_idf': (True, False),
     'tfidf__norm': ('l1', 'l2'),
-    # "clf__max_iter": (20,),
-    # "clf__alpha": (0.00001, 0.000001),
-    # "clf__penalty": ("l2", "elasticnet"),
-    # 'clf__max_iter': (10, 50, 80),
+    "clf__max_iter": (20,),
+    "clf__alpha": (0.00001, 0.000001),
+    "clf__penalty": ("l2", "elasticnet"),
+    'clf__max_iter': (10, 50, 80),
 }
 
 # Find the best parameters for both the feature extraction and the
