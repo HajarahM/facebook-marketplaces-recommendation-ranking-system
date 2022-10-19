@@ -22,6 +22,7 @@ df_products['location'] = df_products['location'].astype('category')
 
 print(df_products)
 df_products['location'].describe()
+df_products.to_csv('cleaned_products.csv')
 
 
 

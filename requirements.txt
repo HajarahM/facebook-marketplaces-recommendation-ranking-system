@@ -6,3 +6,4 @@ imagesize
 sklearn
 torch
 transformers
+scipy
