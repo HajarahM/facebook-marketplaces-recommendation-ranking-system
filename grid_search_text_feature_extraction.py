@@ -86,7 +86,7 @@ categories = [
 print("Loading Products dataset for categories:")
 print(categories)
 
-data = products(subset="train", categories=categories)
+data = categories(subset="train", categories=categories)
 print("%d documents" % len(data.filenames))
 print("%d categories" % len(data.target_names))
 print()
@@ -105,8 +105,7 @@ pipeline = Pipeline(
 )
 
 # Parameters to use for grid search. Uncommenting more parameters will give
-# better exploring power but will increase processing time in a combinatorial
-# way
+# better exploring power but will increase processing time in a combinatorial way
 parameters = {
     "vect__max_df": (0.5, 0.75, 1.0),
     'vect__max_features': (None, 5000, 10000, 50000),
@@ -119,8 +118,7 @@ parameters = {
     'clf__max_iter': (10, 50, 80),
 }
 
-# Find the best parameters for both the feature extraction and the
-# classifier
+# Find the best parameters for both the feature extraction and the classifier
 grid_search = GridSearchCV(pipeline, parameters, n_jobs=-1, verbose=1)
 
 print("Performing grid search...")
