@@ -26,13 +26,6 @@ product_location = products['location']
 countvectorizer = CountVectorizer()
 tfidfvectorizer = TfidfVectorizer()
 
-# convert the documents into a matrix
-# Count
-count_productname = countvectorizer.fit_transform(product_name).toarray()
-count_productcategory = countvectorizer.fit_transform(product_category).toarray()
-count_productdescription = countvectorizer.fit_transform(product_description).toarray()
-count_productlocation = countvectorizer.fit_transform(product_location).toarray()
-
 # Vectorize and get TF-IDF scores
 response_prouductname = tfidfvectorizer.fit_transform(product_name).toarray()
 response_prouductcategory = tfidfvectorizer.fit_transform(product_category).toarray()
