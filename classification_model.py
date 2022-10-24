@@ -10,13 +10,15 @@ products_train = pd.read_csv('cleaned_products.csv', sep=',',header=0, linetermi
 products_test = pd.read_csv('cleaned_products.csv', sep=',',header=0, lineterminator='\n')
 
 ohe = preprocessing.OneHotEncoder()
-for product_name in products_train:
-    if products_train[product_name].dtype == object:
-        products_train[product_name] = ohe.fit_transform(products_train[product_name])
-    else:
-        pass
+products_train = products_train.values.reshape (1,-1)
+products_train = ohe.fit_transform(products_train)
+# for product_name in products_train:
+#     if products_train[product_name].dtype == object:
+#         products_train[product_name] = ohe.fit_transform(products_train[product_name])
+#     else:
+#         pass
 
-y_tr = products_train.iloc[:,4]
+y_tr = products_train.iloc[:,5]
 X_tr = products_train.iloc[:,2:]
 
 y_test = products_test.iloc[:,4]
