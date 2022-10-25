@@ -9,3 +9,5 @@ transformers
 scipy
 functions
 scikit-learn
+torch
+torchvision
