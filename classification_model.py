@@ -18,10 +18,10 @@ products_train = ohe.fit_transform(products_train)
 #     else:
 #         pass
 
-y_tr = products_train.iloc[:,5]
-X_tr = products_train.iloc[:,2:]
+y_tr = products_train[:,5:]
+X_tr = products_train[:,2:]
 
-y_test = products_test.iloc[:,4]
+y_test = products_test.iloc[:,5]
 X_test = products_test.iloc[:,2:]
 
 LR = LogisticRegression(random_state=0, solver='lbfgs', multi_class='multinomial').fit(X_tr, y_tr)

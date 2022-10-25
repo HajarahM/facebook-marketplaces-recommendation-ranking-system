@@ -5,9 +5,8 @@ matplotlib
 imagesize
 sklearn
 torch
+torchvision
 transformers
 scipy
 functions
 scikit-learn
-torch
-torchvision
