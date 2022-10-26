@@ -1,6 +1,5 @@
 import torch
 import pandas as pd
-import torchvision
 from torchvision.datasets import MNIST
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
