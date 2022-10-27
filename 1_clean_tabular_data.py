@@ -1,28 +1,38 @@
 import pandas as pd
-import numpy as np
 
-df_images = pd.read_csv('Images.csv', index_col=0, lineterminator='\n')
-print(df_images)
+#import csv files as dataframes
+products_df = pd.read_csv('Products.csv', lineterminator='\n')
+images_df = pd.read_csv('Images.csv', lineterminator='\n')
 
-#convert colomn datatypes
-df_products = pd.read_csv("Products.csv", index_col=0, lineterminator='\n')
-print(df_products.info())
+#rename 'id' columns
+df = products_df.rename(columns={'id':'product_id'})
+idf = images_df.rename(columns={'id':'images_id'})
 
-#drop Rows with missing value / NaN in any column
+#merge the 2 tables
+combined_df = pd.merge(df, idf, how="inner", on=["product_id"])
+#delete unnamed columns (index columns from initial tables)
+combined_df.drop(combined_df.columns[combined_df.columns.str.contains('unnamed',case = False)],axis = 1, inplace = True)
 
-clean_df_products = df_products.dropna()
-print("Modified Dataframe : ")
-print(clean_df_products)
+#change datatype of price column to float, remove currency sign, and make numeric
+combined_df['price'] = combined_df['price'].replace('[\£,]', '', regex=True).astype(float)
+combined_df['price'] = pd.to_numeric(combined_df['price'], errors='coerce')
 
-#price
-df_products['price'] = df_products['price'].replace('[\£,]', '', regex=True).astype(float)
-df_products['price'] = pd.to_numeric(df_products['price'])
-#location
-df_products['location'] = df_products['location'].astype('category')
+#Specify Category columns
+combined_df['category'] = combined_df['category'].astype('category')
+combined_df['location'] = combined_df['location'].astype('category')
 
-print(df_products)
-df_products['location'].describe()
-df_products.to_csv('cleaned_products.csv')
+#delete rows with empty data, missing values
+cleaned_df = combined_df.dropna()
+
+#print statements
+print(f'Products dataset: {len(df)}')
+print(f'Image dataset {len(idf)}')
+print(f'Combined products dataframe: {len(combined_df)}')
+print(f'Cleaned products dataframe: {len(cleaned_df)} some products have mulitple images')
+print(cleaned_df.head())
+
+# save cleaned_products dataframe to csv file
+cleaned_df.to_csv('cleaned_products.csv')
 
 
 
