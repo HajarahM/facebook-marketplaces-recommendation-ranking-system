@@ -6,7 +6,7 @@ images_df = pd.read_csv('Images.csv', lineterminator='\n')
 
 #rename 'id' columns
 df = products_df.rename(columns={'id':'product_id'})
-idf = images_df.rename(columns={'id':'images_id'})
+idf = images_df.rename(columns={'id':'image_id'})
 
 #merge the 2 tables
 combined_df = pd.merge(df, idf, how="inner", on=["product_id"])
@@ -16,6 +16,12 @@ combined_df.drop(combined_df.columns[combined_df.columns.str.contains('unnamed',
 #change datatype of price column to float, remove currency sign, and make numeric
 combined_df['price'] = combined_df['price'].replace('[\£,]', '', regex=True).astype(float)
 combined_df['price'] = pd.to_numeric(combined_df['price'], errors='coerce')
+
+#clean product names - strip all text after first "|"
+combined_df['product_name'] = combined_df['product_name'].str.split('|').str[0]
+
+#split category column into main and sub categories
+combined_df['main_category'], combined_df['sub_category'] = combined_df['category'].str.split('/',1).str
 
 #Specify Category columns
 combined_df['category'] = combined_df['category'].astype('category')
