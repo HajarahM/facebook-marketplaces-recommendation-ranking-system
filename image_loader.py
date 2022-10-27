@@ -64,7 +64,7 @@ class ProductsDataset(Dataset):
         label = self.labels[index]
         label = self.encoder[label]
         label = torch.as_tensor(label)
-        image = Image.open('cleaned_images/' + self.files[index] + '.jpg')
+        image = Image.open('images/' + self.files[index] + '.jpg')
         if image.mode != 'RGB':
             image = self.transform_Gray(image)
         else:
