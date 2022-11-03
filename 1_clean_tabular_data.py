@@ -13,7 +13,8 @@ combined_df = pd.merge(df, idf, how="inner", on=["product_id"])
 #delete unnamed columns (index columns from initial tables)
 combined_df.drop(combined_df.columns[combined_df.columns.str.contains('unnamed',case = False)],axis = 1, inplace = True)
 
-#change datatype of price column to float, remove currency sign, and make numeric
+#change datatype of price column to float, remove currency sign, remove all emojis and make numeric
+combined_df.astype(str).apply(lambda x: x.str.encode('ascii', 'ignore').str.decode('ascii'))
 combined_df['price'] = combined_df['price'].replace('[\£,]', '', regex=True).astype(float)
 combined_df['price'] = pd.to_numeric(combined_df['price'], errors='coerce')
 

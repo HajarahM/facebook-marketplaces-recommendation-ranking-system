@@ -1,3 +1,4 @@
+from statistics import linear_regression
 import torch
 import requests
 import random
@@ -5,6 +6,7 @@ import os
 import json
 import numpy as np
 import pandas as pd
+import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torchvision import transforms
 from torchvision.datasets import MNIST
@@ -12,6 +14,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from torch.utils.data import random_split
 from torchvision.transforms import PILToTensor
+from torch.utils.tensorboard import SummaryWriter
 from pathlib import Path
 from tqdm import tqdm
 from PIL import Image
@@ -89,6 +92,42 @@ def split_train_test(dataset, train_percentage):
     train_dataset, validation_dataset = random_split(dataset, [train_split, len(dataset) - train_split])
     return train_dataset, validation_dataset
 
+def train(model, epochs=10):
+
+    optimiser = torch.optim.SGD(model.parameters(), lr=0.001)
+
+    writer = SummaryWriter()
+
+    batch_idx = 0
+
+    for epoch in range(epochs):
+        for batch in data_loader:
+            features, labels = batch
+            prediction = model(features)
+            loss = F.mse_loss(prediction, labels)
+            loss.backward()
+            print(loss.items())
+            optimiser.step() # optimisatuib step
+            optimiser.zero_grad()
+            writer.add_scalar('loss', loss.item(), batch_idx)
+            batch_idx += 1
+
+class NN(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        # define layers
+        self.layers = torch.nn.Sequential(
+            torch.nn.AdaptiveMaxPool2d(10, 16),
+            torch.nn.ReLU(),
+            torch.nn.Linear(10, 16),
+            torch.nn.ReLU(), #relu activate
+            torch.nn.Linear(16, 1)
+        )
+
+    def forward(self, X):
+        #return prediction
+        return self.layers(X)
+
 if __name__ =='__main__':
     dataset = ProductsDataset()
     print(dataset[0][0])
@@ -100,7 +139,10 @@ if __name__ =='__main__':
         print(data.size())
         if batch==0:
             break
-        
-
+    
     print(dataset[0])
     print(len(dataset))
+
+    model = NN()
+    train(model)    
+
