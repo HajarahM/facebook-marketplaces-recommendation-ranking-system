@@ -26,10 +26,10 @@ def repeat_channel(x):
             return x.repeat(3,1,1)
 
 class ProductsDataset(Dataset):
-    def __init__(self, labels_level: int=0, transform: transforms = None, max_length: int=50):
+    def __init__(self, transform: transforms = None, max_length: int=50):
 
     # Get cleaned product list and extract category labels
-        if not os.path.exists('cleaned_images'):
+        if not os.path.exists('clean_images'):
             raise RuntimeError('Images Dataset not found')
         else:
             self.products = pd.read_csv('cleaned_products.csv', lineterminator='\n')
@@ -37,7 +37,6 @@ class ProductsDataset(Dataset):
         self.descriptions = self.products['product_description'].to_list()
         self.labels = self.products['main_category'].to_list()
         self.max_length = max_length
-
         # Get the Images
         self.files = self.products['image_id']
         self.num_classes = len(set(self.labels))
@@ -47,7 +46,7 @@ class ProductsDataset(Dataset):
         if transform is None:
             self.transform = transforms.Compose([
                 transforms.Resize(256),
-                transforms.CenterCrop(256),
+                transforms.CenterCrop(224),
                 transforms.RandomHorizontalFlip(p=0.3),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
@@ -55,7 +54,7 @@ class ProductsDataset(Dataset):
 
         self.transform_Gray = transforms.Compose([
             transforms.Resize(256),
-            transforms.CenterCrop(256),
+            transforms.CenterCrop(224),
             transforms.RandomHorizontalFlip(p=0.3),
             transforms.ToTensor(),
             transforms.Lambda(repeat_channel),
@@ -67,7 +66,7 @@ class ProductsDataset(Dataset):
         label = self.labels[index]
         label = self.encoder[label]
         label = torch.as_tensor(label).float()
-        image = Image.open('images/' + self.files[index] + '.jpg')
+        image = Image.open('clean_images/' + self.files[index] + '.jpg')
         if image.mode != 'RGB':
             image = self.transform_Gray(image)
         else:
@@ -107,7 +106,7 @@ def train(model, epochs=10):
             loss = F.mse_loss(prediction, labels)
             loss.backward()
             print(loss.item())
-            optimiser.step() # optimisatuib step
+            optimiser.step() # optimisation step
             optimiser.zero_grad()
             writer.add_scalar('loss', loss.item(), batch_idx)
             batch_idx += 1
@@ -122,13 +121,19 @@ class CNN(torch.nn.Module):
             torch.nn.Conv2d(10, 20, kernel_size=3),
             torch.nn.ReLU(), 
             torch.nn.Flatten(),
-            torch.nn.Linear(1270080, 16),
+            torch.nn.Linear(968000, 16),
             torch.nn.ReLU(), 
             torch.nn.Linear(16, 16),
             torch.nn.Softmax()
         )
 
     def forward(self, X):
+        #    X = F.relu(F.max_pool2d(self.conv1(X), 2))
+        #    X = F.relu(F.max_pool2d(self.conv2_drop(self.conv2(X)), 2))
+        #    X = X.view(X.shape[0],-1)
+        #    X = F.relu(self.fc1(X))
+        #    X = F.dropout(X, training=self.training)
+        #   X = self.fc2(X)
         #return prediction
         return self.layers(X)
 
@@ -136,7 +141,7 @@ if __name__ =='__main__':
     dataset = ProductsDataset()
     print(dataset[0][0])
     print(dataset.decoder[int(dataset[0][1])])
-    data_loader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=1)
+    data_loader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=1, drop_last=True)
     for batch, (data, labels) in enumerate(data_loader):
         print(data)
         print(labels)

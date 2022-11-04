@@ -16,19 +16,18 @@ def clean_image_data(original_image_path):
 
     #create 'cleaned_images' folder
     try:
-        if not os.path.exists('./cleaned_images/'):
-            os.makedirs('./cleaned_images/')
+        if not os.path.exists('./clean_images/'):
+            os.makedirs('./clean_images/')
     except OSError:
-        print ('Error: Creating directory. ' +  './cleaned_images/')
+        print ('Error: Creating directory. ' +  './clean_images/')
 
     #resize and save new image
-    for n, item in enumerate(dirs[:12604], 1):
+    for n, item in enumerate(dirs[:126040], 1):
         im = Image.open(original_image_path + item)
         new_im = resize_image(final_size, im)
-        old_file_path = os.path.splitext(f'./cleaned_images/{item}')[0]
-        # new_im.save(f'./cleaned_images/{item}_resized.jpg')
-        new_im.save(f'{old_file_path}_resized.jpg')
+        # old_file_path = os.path.splitext(f'./cleaned_images/{item}')[0]
+        new_im.save(f'./clean_images/{item}')
+        # new_im.save(f'{old_file_path}.jpg')
 
 if __name__ == '__main__':    
     clean_image_data("./images/")
-    
