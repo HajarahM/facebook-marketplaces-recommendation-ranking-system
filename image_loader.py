@@ -66,7 +66,7 @@ class ProductsDataset(Dataset):
 
         label = self.labels[index]
         label = self.encoder[label]
-        label = torch.as_tensor(label)
+        label = torch.as_tensor(label).float()
         image = Image.open('images/' + self.files[index] + '.jpg')
         if image.mode != 'RGB':
             image = self.transform_Gray(image)
@@ -106,7 +106,7 @@ def train(model, epochs=10):
             prediction = model(features)
             loss = F.mse_loss(prediction, labels)
             loss.backward()
-            print(loss.items())
+            print(loss.item())
             optimiser.step() # optimisatuib step
             optimiser.zero_grad()
             writer.add_scalar('loss', loss.item(), batch_idx)
