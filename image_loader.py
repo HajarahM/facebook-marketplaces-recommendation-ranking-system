@@ -26,7 +26,7 @@ def repeat_channel(x):
             return x.repeat(3,1,1)
 
 class ProductsDataset(Dataset):
-    def __init__(self, labels_level: int = 0, transform: transforms = None, max_length: int = 50):
+    def __init__(self, labels_level: int=0, transform: transforms = None, max_length: int=50):
 
     # Get cleaned product list and extract category labels
         if not os.path.exists('cleaned_images'):
@@ -112,16 +112,20 @@ def train(model, epochs=10):
             writer.add_scalar('loss', loss.item(), batch_idx)
             batch_idx += 1
 
-class NN(torch.nn.Module):
+class CNN(torch.nn.Module):
     def __init__(self):
         super().__init__()
         # define layers
         self.layers = torch.nn.Sequential(
-            torch.nn.AdaptiveMaxPool2d(10, 16),
-            torch.nn.ReLU(),
-            torch.nn.Linear(10, 16),
+            torch.nn.Conv2d(in_channels=3, out_channels=10, kernel_size=3),
             torch.nn.ReLU(), #relu activate
-            torch.nn.Linear(16, 1)
+            torch.nn.Conv2d(10, 20, kernel_size=3),
+            torch.nn.ReLU(), 
+            torch.nn.Flatten(),
+            torch.nn.Linear(1270080, 16),
+            torch.nn.ReLU(), 
+            torch.nn.Linear(16, 16),
+            torch.nn.Softmax()
         )
 
     def forward(self, X):
@@ -143,6 +147,6 @@ if __name__ =='__main__':
     print(dataset[0])
     print(len(dataset))
 
-    model = NN()
+    model = CNN()
     train(model)    
 
