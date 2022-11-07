@@ -61,7 +61,7 @@ class ProductsDataset(Dataset):
 
         label = self.labels[index]
         label = self.encoder[label]
-        label = torch.as_tensor(label)
+        label = torch.as_tensor(label).float()
         image = Image.open('clean_images/' + self.files[index] + '.jpg')
         if image.mode != 'RGB':
             image = self.transform_Gray(image)
@@ -92,35 +92,45 @@ def train(model, epochs=20):
     optimiser = torch.optim.SGD(model.parameters(), lr=0.001)
 
     writer = SummaryWriter()
-    criteria = torch.nn.CrossEntropyLoss()
+
     batch_idx = 0
 
     for epoch in range(epochs):
-        p_bar = tqdm(enumerate(data_loader), total=len(data_loader))
-        for i,batch in p_bar:
+        for batch in data_loader:
             features, labels = batch
             prediction = model(features)
-            loss = criteria(prediction, labels)
-            loss.backward()            
+            loss = F.mse_loss(prediction, labels)
+            loss.backward()
+            print(loss.item())
             optimiser.step() # optimisation step
             optimiser.zero_grad()
             writer.add_scalar('loss', loss.item(), batch_idx)
             batch_idx += 1
-            p_bar.set_description(f"Epoch = {epoch+1}/{epochs}. Acc = {round(torch.sum(torch.argmax(prediction, dim=1) == labels).item()/len(labels), 2)}, Losses = {round(loss.item(), 2)}")
 
 class CNN(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.resnet50 = torch.hub.load('NVIDIA/DeepLearningExamples:torchhub', 'nvidia_resnet50', pretrained=True)
         
-        # define layers        
+        # define layers
+        self.layers = torch.nn.Sequential(
+            torch.nn.Conv2d(in_channels=3, out_channels=10, kernel_size=3),
+            torch.nn.ReLU(), #relu activate
+            torch.nn.Conv2d(10, 20, kernel_size=3),
+            torch.nn.ReLU(), 
+            torch.nn.Flatten(),
+            torch.nn.Linear(968000, 16),
+            torch.nn.ReLU(), 
+            torch.nn.Linear(16, 16),
+            torch.nn.Softmax()
+        )
         output_features = self.resnet50.fc.out_features
         self.linear = torch.nn.Linear(output_features, 13)
 
         self.main = torch.nn.Sequential(self.resnet50, self.linear)
 
     def forward(self, X):
-        return self.main(X)
+        return self.resnet50(X)
 
 if __name__ =='__main__':
     dataset = ProductsDataset()
