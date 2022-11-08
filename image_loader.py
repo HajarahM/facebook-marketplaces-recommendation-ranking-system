@@ -1,6 +1,7 @@
 import torch
 import random
 import os
+import pickle
 import numpy as np
 import pandas as pd
 import torch.nn.functional as F
@@ -139,4 +140,7 @@ if __name__ =='__main__':
 
     model = CNN()
     train(model)    
+
+    pickle.dump(model, open('model.pkl', 'wb'))
+    pickle.dump(dataset.decoder, open('image_decoder.pkl', 'wb'))
 
