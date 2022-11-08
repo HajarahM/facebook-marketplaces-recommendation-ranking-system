@@ -138,9 +138,22 @@ if __name__ =='__main__':
     print(dataset[0])
     print(len(dataset))
 
+    #run model
     model = CNN()
     train(model)    
 
+    #save model
+    torch.save(model.state_dict(), 'model.pt')
+
+    #save pickle file of decoder dictionary
     pickle.dump(model, open('model.pkl', 'wb'))
     pickle.dump(dataset.decoder, open('image_decoder.pkl', 'wb'))
+
+    #reload saved model
+    state_dict = torch.load('model.pt')
+    new_model = CNN()
+    new_model.load_state_dict(state_dict)
+    train(new_model)
+
+
 
