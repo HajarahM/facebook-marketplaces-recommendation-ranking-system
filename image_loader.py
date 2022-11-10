@@ -145,14 +145,14 @@ def train(model, epochs=5):
         
         #create dated directory and weights folder
         date_directory_path = create_date_directory('./model_evaluation')
-        weights_path = create_folder(f'{date_directory_path}/weights')
+        create_folder(f'{date_directory_path}/weights/{epoch+1}')
         # training loop to save the weights of the model at the end of every epoch.
         torch.save(
             {'epoch': epoch+1,
             'model_state_dict': model.state_dict(),
             'accuracy': Accuracy,
             'loss': loss},
-            f'{weights_path}/{epoch+1}/model.pt')
+            f'{date_directory_path}/weights/epoch_{epoch+1}/model.pt')
     
     create_folder('./final_models')
     torch.save(model.state_dict(),'final_models/image_model.pt')
