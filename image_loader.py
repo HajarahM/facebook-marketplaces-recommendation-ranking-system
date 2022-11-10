@@ -142,8 +142,9 @@ def train(model, epochs=10):
             optimiser.step() # optimisation step
             optimiser.zero_grad()
             writer.add_scalar('loss', loss.item(), batch_idx)
-            batch_idx += 1
             Accuracy = round(torch.sum(torch.argmax(prediction, dim=1) == labels).item()/len(labels), 2)
+            writer.add_scalar('Accuracy', Accuracy.item(), batch_idx)
+            batch_idx += 1            
             Losses = round(loss.item(), 2)
             p_bar.set_description(f"Epoch = {epoch+1}/{epochs}. Acc = {Accuracy}, Losses = {Losses}")
         # training loop to save the weights of the model at the end of every epoch.
