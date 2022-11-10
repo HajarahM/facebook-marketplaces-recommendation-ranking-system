@@ -96,7 +96,7 @@ def split_train_test(dataset, train_percentage):
 def create_date_directory(path : str) -> PosixPath:
 
     now = datetime.today()
-    nTime = now.strftime("%Y-%m-%d_%H-%M-%S")
+    nTime = now.strftime("%Y-%m-%d_%H")
 
     if not Path(path).joinpath(nTime).exists():
       Path(path).joinpath(nTime).mkdir(parents=True)
@@ -119,13 +119,8 @@ def create_folder(directory):
     except OSError:
         print ('Error: Creating directory. ' +  directory)
     return Path(directory)
-
-#create dated directory and weights folder
-date_directory_path = create_date_directory('./model_evaluation')
     
-def train(model, epochs=10):
-
-    weights_path = create_folder(f'{date_directory_path}/weights')
+def train(model, epochs=5):
 
     optimiser = torch.optim.SGD(model.parameters(), lr=0.01)
     writer = SummaryWriter()
@@ -143,10 +138,14 @@ def train(model, epochs=10):
             optimiser.zero_grad()
             writer.add_scalar('loss', loss.item(), batch_idx)
             Accuracy = round(torch.sum(torch.argmax(prediction, dim=1) == labels).item()/len(labels), 2)
-            writer.add_scalar('Accuracy', Accuracy.item(), batch_idx)
+            writer.add_scalar('Accuracy', Accuracy, batch_idx)
             batch_idx += 1            
             Losses = round(loss.item(), 2)
             p_bar.set_description(f"Epoch = {epoch+1}/{epochs}. Acc = {Accuracy}, Losses = {Losses}")
+        
+        #create dated directory and weights folder
+        date_directory_path = create_date_directory('./model_evaluation')
+        weights_path = create_folder(f'{date_directory_path}/weights')
         # training loop to save the weights of the model at the end of every epoch.
         torch.save(
             {'epoch': epoch+1,
@@ -154,6 +153,9 @@ def train(model, epochs=10):
             'accuracy': Accuracy,
             'loss': loss},
             f'{weights_path}/{epoch+1}/model.pt')
+    
+    create_folder('./final_models')
+    torch.save(model.state_dict(),'final_models/image_model.pt')
     #save pickle file of decoder dictionary
     pickle.dump(dataset.decoder, open('image_decoder.pkl', 'wb'))
         
@@ -174,7 +176,7 @@ class CNN(torch.nn.Module):
 def load_model():
     model = CNN()
     train(model)
-    checkpoint = torch.load(f'./model_evaluation/{date_directory_path}/weights/model.pth')
+    checkpoint = torch.load('./final_models/image_model.pt')
     model.load_state_dict(checkpoint['model_state_dict'])
     train.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     train.epoch = checkpoint['epoch']
