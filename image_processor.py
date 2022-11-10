@@ -50,7 +50,8 @@ class ProcessImage:
             image = self.transform_Gray(image)
         else:
             image = self.transform(image)
-        # Add a dimension to the image
+
+        # Add a dimension to the image (from (batch_size, n_channels, height, width) to (n_channels, height, width).)
         image = image[1, :, :, :]
         print(type(image), image.shape)
         return image

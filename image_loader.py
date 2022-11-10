@@ -173,9 +173,8 @@ class CNN(torch.nn.Module):
     def forward(self, X):
         return self.main(X)
 
+#load saved model
 def load_model():
-    model = CNN()
-    train(model)
     checkpoint = torch.load('./final_models/image_model.pt')
     model.load_state_dict(checkpoint['model_state_dict'])
     train.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -197,6 +196,9 @@ if __name__ =='__main__':
 
     #run model
     load_model()
+    model = CNN()
+    train(model)
+
 
 
 

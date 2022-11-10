@@ -9,6 +9,13 @@ I then created a requirements.txt file to list all the required installations
     Pillow
     matplotlib
     imagesize
+    sklearn
+    torch
+    torchvision
+    transformers
+    scipy
+    functions
+    scikit-learn
 ```
 ## Exploring the Dataset
 Following addition to the 'Images.csv' and 'Products.csv' files to the repository and importing of the images folder, I then cleaned the dataset. 
@@ -17,21 +24,48 @@ Following addition to the 'Images.csv' and 'Products.csv' files to the repositor
 The file 'clean_tabular_data.py' was created containing code to clean the data, specifically converting the text data to numerical data where needed and to delete rows with missing information.
 Sample code below;
 ```python
-    #convert colomn datatypes
-    df_products = pd.read_csv("Products.csv", index_col=0, lineterminator='\n')
-    #price
-    df_products['price'] = df_products['price'].replace('[\£,]', '', regex=True).astype(float)
-    df_products['price'] = pd.to_numeric(df_products['price'])
-    #location
-    df_products['location'] = df_products['location'].astype('category')
+import pandas as pd
 
-    print(df_products)
-    df_products['location'].describe()
+#import csv files as dataframes
+products_df = pd.read_csv('Products.csv', lineterminator='\n')
+images_df = pd.read_csv('Images.csv', lineterminator='\n')
 
-    #drop Rows with missing value / NaN in any column
-    clean_df_products = df_products.dropna()
-    print("Modified Dataframe : ")
-    print(clean_df_products)
+#rename 'id' columns
+df = products_df.rename(columns={'id':'product_id'})
+idf = images_df.rename(columns={'id':'image_id'})
+
+#merge the 2 tables
+combined_df = pd.merge(df, idf, how="inner", on=["product_id"])
+#delete unnamed columns (index columns from initial tables)
+combined_df.drop(combined_df.columns[combined_df.columns.str.contains('unnamed',case = False)],axis = 1, inplace = True)
+
+#change datatype of price column to float, remove currency sign, remove all emojis and make numeric
+combined_df.astype(str).apply(lambda x: x.str.encode('ascii', 'ignore').str.decode('ascii'))
+combined_df['price'] = combined_df['price'].replace('[\£,]', '', regex=True).astype(float)
+combined_df['price'] = pd.to_numeric(combined_df['price'], errors='coerce')
+
+#clean product names - strip all text after first "|"
+combined_df['product_name'] = combined_df['product_name'].str.split('|').str[0]
+
+#split category column into main and sub categories
+combined_df['main_category'], combined_df['sub_category'] = combined_df['category'].str.split('/',1).str
+
+#Specify Category columns
+combined_df['category'] = combined_df['category'].astype('category')
+combined_df['location'] = combined_df['location'].astype('category')
+
+#delete rows with empty data, missing values
+cleaned_df = combined_df.dropna()
+
+#print statements
+print(f'Products dataset: {len(df)}')
+print(f'Image dataset {len(idf)}')
+print(f'Combined products dataframe: {len(combined_df)}')
+print(f'Cleaned products dataframe: {len(cleaned_df)} some products have mulitple images')
+print(cleaned_df.head())
+
+# save cleaned_products dataframe to csv file
+cleaned_df.to_csv('cleaned_products.csv')
 ```
 ### Cleaning the Image Dataset
 #### Analyzing the Images
@@ -67,35 +101,44 @@ Sample code below;
 The file 'clean_images.py' was created containing code to clean the images. A pipeline was created to take in a filepath of the folder which contains the images, then clean them (change all images to the same image size of 256) and save them into a new folder called "cleaned_images".
 Sample code below;
 ```python
-    from PIL import Image
-    import os
+from PIL import Image
+import os
 
-    def resize_image(final_size, im):
-        size = im.size
-        ratio = float(final_size) / max(size)
-        new_image_size = tuple([int(x*ratio) for x in size])
-        im = im.resize(new_image_size, Image.ANTIALIAS)
-        new_im = Image.new("RGB", (final_size, final_size))
-        new_im.paste(im, ((final_size-new_image_size[0])//2, (final_size-new_image_size[1])//2))
-        return new_im
+def resize_image(final_size, im):
+    size = im.size
+    ratio = float(final_size) / max(size)
+    new_image_size = tuple([int(x*ratio) for x in size])
+    im = im.resize(new_image_size, Image.Resampling.LANCZOS)
+    new_im = Image.new("RGB", (final_size, final_size))
+    new_im.paste(im, ((final_size-new_image_size[0])//2, (final_size-new_image_size[1])//2))
+    return new_im
 
-    def clean_image_data(original_image_path):
-        dirs = os.listdir(original_image_path)
-        final_size = 256
+def clean_image_data(original_image_path):
+    dirs = os.listdir(original_image_path)
+    final_size = 256
 
-        #create 'cleaned_images' folder
-        try:
-            if not os.path.exists('./cleaned_images/'):
-                os.makedirs('./cleaned_images/')
-        except OSError:
-            print ('Error: Creating directory. ' +  './cleaned_images/')
+    #create 'cleaned_images' folder
+    try:
+        if not os.path.exists('./clean_images/'):
+            os.makedirs('./clean_images/')
+    except OSError:
+        print ('Error: Creating directory. ' +  './clean_images/')
 
-        #resize and save new image
-        for n, item in enumerate(dirs[:5], 1):
-            im = Image.open(original_image_path + item)
-            new_im = resize_image(final_size, im)
-            new_im.save(f'./cleaned_images/{n}_resized.jpg')
+    #resize and save new image
+    for n, item in enumerate(dirs[:126040], 1):
+        im = Image.open(original_image_path + item)
+        new_im = resize_image(final_size, im)
+        # old_file_path = os.path.splitext(f'./cleaned_images/{item}')[0]
+        new_im.save(f'./clean_images/{item}')
+        # new_im.save(f'{old_file_path}.jpg')
 
-    if __name__ == '__main__':    
-        clean_image_data("./images/")
+if __name__ == '__main__':
+    clean_image_data("./images/")
 ```      
+## Create Vision Model
+I followed the following steps to create a Vision model - training it using Facebook Marketplace pictures to predict the image categories.
+    1. Created a Pytorch dataset and built a CNN (Convolutional Neural Network) model with a training loop 
+    2. Fine-tuned using a pre-trained model
+    3. Saved weights of each epoch by date and final model
+    4. Created an image processor script to get user input of image which will be used by trained model to predict it's category
+The breakdown of the detail steps and respective code follow below
