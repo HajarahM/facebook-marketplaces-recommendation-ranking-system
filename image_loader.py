@@ -12,12 +12,17 @@ from torch.utils.data import Dataset
 from torch.utils.data import random_split
 from torchvision.transforms import PILToTensor
 from torch.utils.tensorboard import SummaryWriter
-from pathlib import Path
 from tqdm import tqdm
 from PIL import Image
 from PIL import ImageFile
+from datetime import datetime
+from pathlib import Path, PosixPath
+import warnings
+warnings.filterwarnings('ignore')
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+# Image model
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 def repeat_channel(x):
             return x.repeat(3,1,1)
@@ -88,10 +93,41 @@ def split_train_test(dataset, train_percentage):
     train_dataset, validation_dataset = random_split(dataset, [train_split, len(dataset) - train_split])
     return train_dataset, validation_dataset
 
-def train(model, epochs=20):
+def create_date_directory(path : str) -> PosixPath:
 
-    optimiser = torch.optim.SGD(model.parameters(), lr=0.001)
+    now = datetime.today()
+    nTime = now.strftime("%Y-%m-%d_%H-%M-%S")
 
+    if not Path(path).joinpath(nTime).exists():
+      Path(path).joinpath(nTime).mkdir(parents=True)
+    
+    return Path(path).joinpath(nTime)
+
+def create_folder(directory):
+    """ 
+    Description
+    -----------
+    Creates a new folder in the specified directory if it doesn't already exist. Incase of an OS-Error, an error message is printed out.
+    
+    Parameters
+    ----------
+    directory: str, the path to the directory where the new file is to be saved. "./" being the current folder of the python file.
+    """
+    try:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+    except OSError:
+        print ('Error: Creating directory. ' +  directory)
+    return Path(directory)
+
+#create dated directory and weights folder
+date_directory_path = create_date_directory('./model_evaluation')
+    
+def train(model, epochs=10):
+
+    weights_path = create_folder(f'{date_directory_path}/weights')
+
+    optimiser = torch.optim.SGD(model.parameters(), lr=0.01)
     writer = SummaryWriter()
     criteria = torch.nn.CrossEntropyLoss()
     batch_idx = 0
@@ -107,53 +143,57 @@ def train(model, epochs=20):
             optimiser.zero_grad()
             writer.add_scalar('loss', loss.item(), batch_idx)
             batch_idx += 1
-            p_bar.set_description(f"Epoch = {epoch+1}/{epochs}. Acc = {round(torch.sum(torch.argmax(prediction, dim=1) == labels).item()/len(labels), 2)}, Losses = {round(loss.item(), 2)}")
+            Accuracy = round(torch.sum(torch.argmax(prediction, dim=1) == labels).item()/len(labels), 2)
+            Losses = round(loss.item(), 2)
+            p_bar.set_description(f"Epoch = {epoch+1}/{epochs}. Acc = {Accuracy}, Losses = {Losses}")
+        # training loop to save the weights of the model at the end of every epoch.
+        torch.save(
+            {'epoch': epoch+1,
+            'model_state_dict': model.state_dict(),
+            'accuracy': Accuracy,
+            'loss': loss},
+            f'{weights_path}/{epoch+1}/model.pt')
+    #save pickle file of decoder dictionary
+    pickle.dump(dataset.decoder, open('image_decoder.pkl', 'wb'))
+        
 
 class CNN(torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.resnet50 = torch.hub.load('NVIDIA/DeepLearningExamples:torchhub', 'nvidia_resnet50', pretrained=True)
-        
+        num_classes = 13
         # define layers        
         output_features = self.resnet50.fc.out_features
-        self.linear = torch.nn.Linear(output_features, 13)
-
+        self.linear = torch.nn.Linear(output_features, num_classes).to(device)
         self.main = torch.nn.Sequential(self.resnet50, self.linear)
-
+        
     def forward(self, X):
         return self.main(X)
 
+def load_model():
+    model = CNN()
+    train(model)
+    checkpoint = torch.load(f'./model_evaluation/{date_directory_path}/weights/model.pth')
+    model.load_state_dict(checkpoint['model_state_dict'])
+    train.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    train.epoch = checkpoint['epoch']
+    train.loss = checkpoint['loss']
+   
+
 if __name__ =='__main__':
     dataset = ProductsDataset()
-    # print(dataset[0][0])
-    # print(dataset.decoder[int(dataset[0][1])])
     data_loader = DataLoader(dataset, batch_size=16, shuffle=True, num_workers=1, drop_last=True)
     for batch, (data, labels) in enumerate(data_loader):
         print(data)
         print(labels)
         print(data.size())
         if batch==0:
-            break
-    
+            break 
     print(dataset[0])
     print(len(dataset))
 
     #run model
-    model = CNN()
-    train(model)    
-
-    #save model
-    torch.save(model.state_dict(), 'model.pt')
-
-    #save pickle file of decoder dictionary
-    pickle.dump(model, open('model.pkl', 'wb'))
-    pickle.dump(dataset.decoder, open('image_decoder.pkl', 'wb'))
-
-    #reload saved model
-    state_dict = torch.load('model.pt')
-    new_model = CNN()
-    new_model.load_state_dict(state_dict)
-    train(new_model)
+    load_model()
 
 
 
