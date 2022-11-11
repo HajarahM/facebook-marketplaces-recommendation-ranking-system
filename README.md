@@ -310,3 +310,48 @@ Epoch = 3/5. Acc = 0.69, Losses = 0.7: 100%| 787/787
 Epoch = 4/5. Acc = 0.88, Losses = 0.68: 100%|787/787 
 Epoch = 5/5. Acc = 0.88, Losses = 0.58: 100%|787/787
 _________________________________________________________________________________________
+![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/image_model_results.png?raw=true)
+
+### Task 7 - Creating an image processor script
+Finally I created an image processor script (image_processor.py) that would take in an image and apply the transformations needed (in Task 1) to be fed to the model. 
+I added the dimension to the beginning of the image to make it a batch-size of 1, added code to save the image obtained from user to a 'test file' from where to would be otained for processing.
+Sample code below;
+```python
+class ProcessImage:
+    def __init__(self):        
+        if not os.path.exists('test_image/image.jpg'):
+            raise RuntimeError('Test image not found, upload image ...')
+        else:
+            print('Loading image')
+        self.transform = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.RandomHorizontalFlip(p=0.3),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
+            ])
+        self.transform_Gray = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.RandomHorizontalFlip(p=0.3),
+            transforms.ToTensor(),
+            transforms.Lambda(repeat_channel),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
+        ])
+    def __call__(self):    
+        #save image
+        create_folder('./test_image')
+        save_image(image, './test_image/image.jpg')  
+        #display image
+        display_image = torchvision.io.read_image('image.jpg')
+        transforms.ToPILImage()(display_image)
+        #process image
+        if image.mode != 'RGB':
+            image = self.transform_Gray(image)
+        else:
+            image = self.transform(image)
+        # Add a dimension to the image (from (batch_size, n_channels, height, width) to (n_channels, height, width).)
+        image = image[1, :, :, :]
+        print(type(image), image.shape)
+        return image 
+```
