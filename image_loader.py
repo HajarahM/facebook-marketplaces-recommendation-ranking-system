@@ -38,12 +38,14 @@ class ProductsDataset(Dataset):
 
         self.descriptions = self.products['product_description'].to_list()
         self.labels = self.products['main_category'].to_list()
-        self.max_length = max_length
-        # Get the Images
-        self.files = self.products['image_id']
+        self.max_length = max_length        
         self.num_classes = len(set(self.labels))
+        #Encoder/Decoder
         self.encoder = {y: x for (x,y) in enumerate(set(self.labels))}
         self.decoder = {x: y for (x,y) in enumerate(set(self.labels))}
+
+        # Get the Images and apply transforms
+        self.files = self.products['image_id']
         self.transform = transform
         if transform is None:
             self.transform = transforms.Compose([

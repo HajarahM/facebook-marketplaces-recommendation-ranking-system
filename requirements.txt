@@ -10,4 +10,6 @@ transformers
 scipy
 functions
 scikit-learn
-
+bert
+bert-tensorflow
+tokenizers
