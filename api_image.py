@@ -10,8 +10,8 @@ from fastapi import Form
 import torch
 import torch.nn as nn
 from pydantic import BaseModel
-import image_processor
-import text_processor
+from image_processor import ProcessImage
+from text_processor import TextProcessor
 
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
 print(device)
@@ -49,23 +49,26 @@ class TextClassifier(nn.Module):
     
     def predict_proba(self, text):
         with torch.no_grad():
-            pass
+            x = self.forward(text)
+            return torch.softmax(x, dim=1)
 
 
     def predict_classes(self, text):
         with torch.no_grad():
-            pass
+            x = self.forward(text)
+            return self.decoder[int(torch.argmax(x, dim=1))]
 
 class ImageClassifier(nn.Module):
-    def __init__(self,
+    def __init__(self, 
+                 num_classes,
                  decoder: dict = None):
         super(ImageClassifier, self).__init__()
         self.resnet50 = torch.hub.load('NVIDIA/DeepLearningExamples:torchhub', 'nvidia_resnet50', pretrained=True)
-        num_classes = 13
+        # num_classes = 13
         # define layers        
         output_features = self.resnet50.fc.out_features
         self.linear = torch.nn.Linear(output_features, num_classes).to(device)
-        self.main = torch.nn.Sequential(self.resnet50, self.linear)
+        self.main = torch.nn.Sequential(self.resnet50, self.linear).to(device)
         self.decoder = decoder
 
     def forward(self, image):
@@ -79,11 +82,13 @@ class ImageClassifier(nn.Module):
 
     def predict_proba(self, image):
         with torch.no_grad():
-            pass
+            x = self.forward(image)
+            return torch.softmax(x, dim=1)
 
     def predict_classes(self, image):
         with torch.no_grad():
-            pass
+            x = self.forward(image)
+            return self.decoder[int(torch.argmax(x, dim=1))]
 
 
 class CombinedModel(nn.Module):
@@ -93,92 +98,71 @@ class CombinedModel(nn.Module):
         self.resnet50 = torch.hub.load('NVIDIA/DeepLearningExamples:torchhub', 'nvidia_resnet50', pretrained=True)
         # define layers        
         output_features = self.resnet50.fc.out_features
-        self.image_classifier = torch.nn.Sequential(self.resnet50, torch.nn.Linear(output_features, 128)).to(device)
+        self.image_classifier = torch.nn.Sequential(self.resnet50, torch.nn.Linear(output_features, num_classes)).to(device)
         self.text_classifier = TextClassifier(ngpu=ngpu, input_size=input_size)
         self.main = torch.nn.Sequential(torch.nn.Linear(160, 32))             
         self.decoder = decoder
 
     def forward(self, image_features, text_features):
-        pass
+        image_features = self.image_classifier(image_features)
+        text_features = self.text_classifier(text_features)
+        combined_features = torch.cat((image_features, text_features), 1)
+        x = self.main(combined_features)
+        return x
 
     def predict(self, image_features, text_features):
         with torch.no_grad():
-            combined_features = self.forward(image_features, text_features)
-            return combined_features
+            x = self.forward(image_features, text_features)
+            return x
     
     def predict_proba(self, image_features, text_features):
         with torch.no_grad():
-            pass
+            x = self.forward(image_features, text_features)
+            return torch.softmax(x, dim=1)
 
     def predict_classes(self, image_features, text_features):
         with torch.no_grad():
-            pass
+            x = self.forward(image_features, text_features)
+            return self.decoder[int(torch.argmax(x, dim=1))]
 
 # Don't change this, it will be useful for one of the methods in the API
 class TextItem(BaseModel):
     text: str
 
-
 try:
-##############################################################
-# TODO                                                       #
-# Load the text model. Initialize a class that inherits from #
-# nn.Module, and has the same structure as the text model    #
-# you used for training it, and then load the weights in it. #
-# Also, load the decoder dictionary that you saved as        #
-# text_decoder.pkl                                           #
-##############################################################
-    pass
+    text_decoder = pickle.load(open('text_decoder.pkl', 'rb'))
+    n_classes = len(text_decoder)
+    text_model = torch.load('./final_models/text_model.pt')
+    text_classifier = TextClassifier(decoder=text_decoder)
+    text_classifier.load_state_dict(text_model)
 except:
     raise OSError("No Text model found. Check that you have the decoder and the model in the correct location")
 
 try:
-##############################################################
-# TODO                                                       #
-# Load the text model. Initialize a class that inherits from #
-# nn.Module, and has the same structure as the image model   #
-# you used for training it, and then load the weights in it. #
-# Also, load the decoder dictionary that you saved as        #
-# image_decoder.pkl                                          #
-##############################################################
-    pass
+    image_decoder = pickle.load(open('image_decoder.pkl', 'rb'))
+    n_classes = len(image_decoder)
+    image_model = torch.load('final_models/image_model.pt', 'rb')
+    image_classifier = ImageClassifier(num_classes=n_classes, decoder=image_decoder)
+    image_classifier.load_state_dict(image_model)
 except:
     raise OSError("No Image model found. Check that you have the encoder and the model in the correct location")
 
 try:
-##############################################################
-# TODO                                                       #
-# Load the text model. Initialize a class that inherits from #
-# nn.Module, and has the same structure as the combined model#
-# you used for training it, and then load the weights in it. #
-# Also, load the decoder dictionary that you saved as        #
-# combined_decoder.pkl                                       #
-##############################################################
-    pass
+    combined_decoder = pickle.load(open('combined_decoder.pkl', 'rb'))
+    n_classes = len(combined_decoder)
+    image_model = torch.load('final_models/combined_model.pt', 'rb')
+    combined_classifier = CombinedModel(ngpu=1, input_size=768, num_classes=n_classes, decoder=combined_decoder)
+    combined_classifier.load_state_dict(image_model)
 except:
     raise OSError("No Combined model found. Check that you have the encoder and the model in the correct location")
 
 try:
-##############################################################
-# TODO                                                       #
-# Initialize the text processor that you will use to process #
-# the text that you users will send to your API.             #
-# Make sure that the max_length you use is the same you used #
-# when you trained the model. If you used two different      #
-# lengths for the Text and the Combined model, initialize two#
-# text processors, one for each model                        #
-##############################################################
-    pass
+    text_processor = TextProcessor(50)
 except:
     raise OSError("No Text processor found. Check that you have the encoder and the model in the correct location")
 
 try:
-##############################################################
-# TODO                                                       #
-# Initialize the image processor that you will use to process#
-# the text that you users will send to your API              #
-##############################################################
-    pass
+    image_processor = ProcessImage()
 except:
     raise OSError("No Image processor found. Check that you have the encoder and the model in the correct location")
 
@@ -187,8 +171,7 @@ print("Starting server")
 
 @app.get('/healthcheck')
 def healthcheck():
-  msg = "API is up and running!"
-  
+  msg = "API is up and running!"  
   return {"message": msg}
 
 @app.post('/predict/text')
@@ -205,25 +188,22 @@ def predict_text(text: TextItem):
     return JSONResponse(content={
         "Category": "", # Return the category here
         "Probabilities": "" # Return a list or dict of probabilities here
-            })
-  
+            })  
   
 @app.post('/predict/image')
 def predict_image(image: UploadFile = File(...)):
     pil_image = Image.open(image.file)
-
-    ##############################################################
-    # TODO                                                       #
-    # Process the input and use it as input for the image model  #
-    # image.file is the image that the user sent to your API     #
-    # Apply the corresponding methods to compute the category    #
-    # and the probabilities                                      #
-    ##############################################################
-
-    return JSONResponse(content={
-    "Category": "", # Return the category here
-    "Probabilities": "" # Return a list or dict of probabilities here
-        })
+    processed_image = image_processor(pil_image)
+    prediction = image_classifier.predict(processed_image)
+    probs = image_classifier.predict_proba(processed_image)
+    classes = image_classifier.predict_classes(processed_image)
+    print(prediction)
+    print(probs)
+    print(classes)
+    return JSONResponse(status_code=200, content={
+        'Category': prediction.tolist(), 
+        'Probabilities': probs.tolist(), 
+        'classes': classes})
   
 @app.post('/predict/combined')
 def predict_combined(image: UploadFile = File(...), text: str = Form(...)):
