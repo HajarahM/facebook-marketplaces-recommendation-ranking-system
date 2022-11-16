@@ -13,3 +13,8 @@ scikit-learn
 bert
 bert-tensorflow
 tokenizers
+fastapi
+pydantic
+uvicorn
+boto3
+python-multipart
