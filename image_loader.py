@@ -17,12 +17,15 @@ from PIL import Image
 from PIL import ImageFile
 from datetime import datetime
 from pathlib import Path, PosixPath
+from transformers import BertTokenizer
+from transformers import BertModel
 import warnings
 warnings.filterwarnings('ignore')
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-# Image model
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
+print(device)
 
 def repeat_channel(x):
             return x.repeat(3,1,1)
@@ -40,6 +43,8 @@ class ProductsDataset(Dataset):
         self.labels = self.products['main_category'].to_list()
         self.max_length = max_length        
         self.num_classes = len(set(self.labels))
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.model = BertModel.from_pretrained('bert-base-uncased', output_hidden_states = True)
         #Encoder/Decoder
         self.encoder = {y: x for (x,y) in enumerate(set(self.labels))}
         self.decoder = {x: y for (x,y) in enumerate(set(self.labels))}
@@ -75,17 +80,16 @@ class ProductsDataset(Dataset):
             image = self.transform_Gray(image)
         else:
             image = self.transform(image)
-        return image, label
 
-        # sentence = self.descriptions[index]
-        # encoded = self.tokenizer.batch_encode_plus([sentence], max_length=self.max_length, padding='max_length', truncation=True)
-        # encoded = {key:torch.LongTensor(value) for key, value in encoded.items()}
-        # with torch.no_grad():
-        #     description = self.model(**encoded).last_hidden_state.swapaxes(1,2)
+        sentence = self.descriptions[index]
+        encoded = self.tokenizer.batch_encode_plus([sentence], max_length=self.max_length, padding='max_length', truncation=True)
+        encoded = {key:torch.LongTensor(value) for key, value in encoded.items()}
+        with torch.no_grad():
+             description = self.model(**encoded).last_hidden_state.swapaxes(1,2)
 
-        # description = description.squeeze
+        description = description.squeeze(0)
 
-        # return image, description, label
+        return image, description, label
 
     def __len__(self):
         return len(self.files)
@@ -182,7 +186,9 @@ def load_model():
     train.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     train.epoch = checkpoint['epoch']
     train.loss = checkpoint['loss']
-   
+
+model = CNN()
+model.to(device) 
 
 if __name__ =='__main__':
     dataset = ProductsDataset()
@@ -192,13 +198,12 @@ if __name__ =='__main__':
         print(labels)
         print(data.size())
         if batch==0:
-            break 
+            break
     print(dataset[0])
     print(len(dataset))
 
     #run model
     load_model()
-    model = CNN()
     train(model)
 
 
