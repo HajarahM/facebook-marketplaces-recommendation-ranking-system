@@ -150,9 +150,9 @@ except:
 try:
     combined_decoder = pickle.load(open('combined_decoder.pkl', 'rb'))
     n_classes = len(combined_decoder)
-    image_model = torch.load('final_models/combined_model.pt', 'rb')
+    combined_model = torch.load('final_models/combined_model.pt', 'rb')
     combined_classifier = CombinedModel(ngpu=1, input_size=768, num_classes=n_classes, decoder=combined_decoder)
-    combined_classifier.load_state_dict(image_model)
+    combined_classifier.load_state_dict(combined_model)
 except:
     raise OSError("No Combined model found. Check that you have the encoder and the model in the correct location")
 
@@ -176,20 +176,18 @@ def healthcheck():
 
 @app.post('/predict/text')
 def predict_text(text: TextItem):
-  
-    ##############################################################
-    # TODO                                                       #
-    # Process the input and use it as input for the text model   #
-    # text.text is the text that the user sent to your API       #
-    # Apply the corresponding methods to compute the category    #
-    # and the probabilities                                      #
-    ##############################################################
-
+    processed_text = text_processor(text.text)
+    prediction = text_classifier.predict(processed_text)
+    probs = text_classifier.predict_proba(processed_text)
+    classes = text_classifier.predict_classes(processed_text)
+    print(prediction)
+    print(probs)
+    print(classes)
     return JSONResponse(content={
-        "Category": "", # Return the category here
-        "Probabilities": "" # Return a list or dict of probabilities here
-            })  
-  
+        'Category': prediction, 
+        'Probabilities': probs.tolist(), 
+        'classes': classes})
+    
 @app.post('/predict/image')
 def predict_image(image: UploadFile = File(...)):
     pil_image = Image.open(image.file)
@@ -200,8 +198,8 @@ def predict_image(image: UploadFile = File(...)):
     print(prediction)
     print(probs)
     print(classes)
-    return JSONResponse(status_code=200, content={
-        'Category': prediction.tolist(), 
+    return JSONResponse(content={
+        'Category': prediction, 
         'Probabilities': probs.tolist(), 
         'classes': classes})
   
@@ -209,21 +207,16 @@ def predict_image(image: UploadFile = File(...)):
 def predict_combined(image: UploadFile = File(...), text: str = Form(...)):
     print(text)
     pil_image = Image.open(image.file)
-    
-    ##############################################################
-    # TODO                                                       #
-    # Process the input and use it as input for the image model  #
-    # image.file is the image that the user sent to your API     #
-    # In this case, text is the text that the user sent to your  #
-    # Apply the corresponding methods to compute the category    #
-    # and the probabilities                                      #
-    ##############################################################
-
+    processed_image = image_processor(pil_image)
+    prediction = combined_classifier.predict(processed_image, text)
+    probs = combined_classifier.predict_proba(processed_image, text)
+    classes = combined_classifier.predict_classes(processed_image, text)
+    print(prediction)
+    print(probs)
+    print(classes)
     return JSONResponse(content={
-    "Category": "", # Return the category here
-    "Probabilities": "" # Return a list or dict of probabilities here
-        })
-    
+        'Category': prediction, 
+        'Probabilities': probs.tolist()})
     
 if __name__ == '__main__':
   uvicorn.run("api:app", host="0.0.0.0", port=8080)
