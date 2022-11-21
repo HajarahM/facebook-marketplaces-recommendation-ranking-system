@@ -10,6 +10,7 @@ transformers
 scipy
 functions
 scikit-learn
+docker
 bert
 bert-tensorflow
 tokenizers
