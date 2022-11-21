@@ -16,10 +16,10 @@ def repeat_channel(x):
 class ProcessImage:
     def __init__(self):
         
-        if not os.path.exists('test_image/image.jpg'):
-            raise RuntimeError('Test image not found, upload image ...')
-        else:
-            print('Loading image')
+        #if not os.path.exists('test_image/image.jpg'):
+        #    raise RuntimeError('Test image not found, upload image ...')
+        #else:
+        print('Loading image')
 
         self.transform = transforms.Compose([
             transforms.Resize(256),
@@ -38,13 +38,13 @@ class ProcessImage:
             transforms.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
         ])
 
-    def __call__(self):    
+    def __call__(self, image):    
         #save image
-        create_folder('./test_image')
-        save_image(image, './test_image/image.jpg')  
+        #create_folder('./test_image')
+        #save_image(image, './test_image/image.jpg')  
         #display image
-        display_image = torchvision.io.read_image('image.jpg')
-        transforms.ToPILImage()(display_image)
+        #display_image = torchvision.io.read_image('image.jpg')
+        #transforms.ToPILImage()(image)
         #process image
         if image.mode != 'RGB':
             image = self.transform_Gray(image)
@@ -52,6 +52,6 @@ class ProcessImage:
             image = self.transform(image)
 
         # Add a dimension to the image (from (batch_size, n_channels, height, width) to (n_channels, height, width).)
-        image = image[1, :, :, :]
+        image = image[None, :, :, :]
         print(type(image), image.shape)
         return image

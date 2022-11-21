@@ -6,12 +6,10 @@ from pydantic import BaseModel
 from PIL import Image
 from fastapi import File
 from fastapi import UploadFile
-from fastapi import Form
 import torch
 import torch.nn as nn
 from pydantic import BaseModel
 from image_processor import ProcessImage
-from text_processor import TextProcessor
 
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
 print(device)
@@ -54,10 +52,10 @@ class TextItem(BaseModel):
 try:
     image_decoder = pickle.load(open('image_decoder.pkl', 'rb'))
     n_classes = len(image_decoder)
-    image_model = torch.load('final_models/image_model.pt', 'rb')
+    image_model = torch.load('image_model.pt')
     image_classifier = ImageClassifier(num_classes=n_classes, decoder=image_decoder)
     image_classifier.load_state_dict(image_model)
-except:
+except OSError: 
     raise OSError("No Image model found. Check that you have the encoder and the model in the correct location")
 
 try:
@@ -84,9 +82,8 @@ def predict_image(image: UploadFile = File(...)):
     print(probs)
     print(classes)
     return JSONResponse(content={
-        'Category': prediction, 
-        'Probabilities': probs.tolist(), 
-        'classes': classes})
+        'Category': classes, 
+        'Probabilities': probs.tolist()})
     
 if __name__ == '__main__':
-  uvicorn.run("api:app", host="0.0.0.0", port=8080)
+  uvicorn.run("api:app", host="127.0.0.1", port=8080)
