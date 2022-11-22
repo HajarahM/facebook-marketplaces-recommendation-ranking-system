@@ -77,7 +77,7 @@ class TextDataset(torch.utils.data.Dataset):
 class Classifier(nn.Module, TextDataset):
     def __init__(self, ngpu, input_size: int = 768, num_classes: int = 2):
         super(Classifier, self).__init__()
-        num_classes = len(TextDataset())
+        #num_classes = len(TextDataset())
         self.ngpu = ngpu
         self.main = nn.Sequential(nn.Conv1d(input_size, 256, kernel_size=3, stride=1, padding=1),
                                   nn.ReLU(),
@@ -93,13 +93,13 @@ class Classifier(nn.Module, TextDataset):
                                   nn.Flatten(),
                                   nn.Linear(192 , 32),
                                   nn.ReLU(),
-                                  nn.Linear(32, num_classes))
+                                  nn.Linear(32, 13))
 
     def forward(self, inp):
         x = self.main(inp)
         return x
 
-def train(model, epochs=2):
+def train(model, epochs=10):
 
     optimiser = torch.optim.Adam(model.parameters(), lr=0.001)
     writer = SummaryWriter()
@@ -143,7 +143,7 @@ model.to(device)
 if __name__ == '__main__':
     dataset = TextDataset()
     dataloader = DataLoader(dataset, batch_size=32, shuffle=True, num_workers=1)
-
+    print(len(dataset))
     for batch, (data, labels) in enumerate(dataloader):
         print(data)
         print(labels)
