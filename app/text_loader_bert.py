@@ -99,7 +99,7 @@ class Classifier(nn.Module, TextDataset):
         x = self.main(inp)
         return x
 
-def train(model, epochs=5):
+def train(model, epochs=2):
 
     optimiser = torch.optim.Adam(model.parameters(), lr=0.001)
     writer = SummaryWriter()
@@ -125,11 +125,12 @@ def train(model, epochs=5):
             accuracy = round(torch.sum(torch.argmax(prediction, dim=1) == labels).item()/len(labels), 2)
             writer.add_scalar('Accuracy', accuracy, batch_idx)
             hist_accuracy.append(accuracy)
-            batch_idx += 1            
-            losses.append(loss.item())
+            batch_idx += 1  
+            losses = round(loss.item(), 2)          
+            #losses.append(loss.item())
             p_bar.set_description(f"Epoch = {epoch+1}/{epochs}. Acc = {accuracy}, Losses = {losses}")
 
-    torch.save(model.state_dict(), 'final_models/text_model.pt')
+    torch.save(model.state_dict(), 'text_model.pt')
     #save pickle file of decoder dictionary
     pickle.dump(dataset.decoder, open('text_decoder.pkl', 'wb'))
     

@@ -43,7 +43,9 @@ class TextClassifier(torch.nn.Module):
                                   torch.nn.Conv1d(64, 32, kernel_size=3, stride=1, padding=1),
                                   torch.nn.ReLU(),
                                   torch.nn.Flatten(),
-                                  torch.nn.Linear(192 , 32))
+                                  torch.nn.Linear(192 , 32),
+                                  torch.nn.ReLU(),
+                                  torch.nn.Linear(32, 13))
 
     def forward(self, inp):
         x = self.main(inp)
@@ -98,7 +100,7 @@ def train(model, epochs=5):
             hist_loss.append(loss.item())           
             optimiser.step()                       
             writer.add_scalar('loss', loss.item())
-            Losses = round(loss.item(), 2)
+            #Losses = round(loss.item(), 2)
             p_bar.set_description(f'Epoch {epoch + 1}/{epochs} Loss: {loss.item():.4f} Acc = {round(torch.sum(torch.argmax(prediction, dim=1) == labels).item()/len(labels), 2)} Total_acc = {round(np.mean(hist_acc), 2)}')
         
     torch.save(model.state_dict(),'final_models/combined_model.pt')

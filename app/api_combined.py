@@ -35,7 +35,9 @@ class TextClassifier(nn.Module):
                                   torch.nn.Conv1d(64, 32, kernel_size=3, stride=1, padding=1),
                                   torch.nn.ReLU(),
                                   torch.nn.Flatten(),
-                                  torch.nn.Linear(192 , 32))        
+                                  torch.nn.Linear(192 , 32),
+                                  nn.ReLU(),
+                                  nn.Linear(32, 13))        
         self.decoder = decoder
 
     def forward(self, text):
@@ -132,8 +134,8 @@ class TextItem(BaseModel):
 try:
     text_decoder = pickle.load(open('text_decoder.pkl', 'rb'))
     n_classes = len(text_decoder)
-    text_model = torch.load('./final_models/text_model.pt')
-    text_classifier = TextClassifier(decoder=text_decoder)
+    text_model = torch.load('text_model.pt')
+    text_classifier = TextClassifier(ngpu=2, decoder=text_decoder)
     text_classifier.load_state_dict(text_model)
 except:
     raise OSError("No Text model found. Check that you have the decoder and the model in the correct location")
@@ -141,7 +143,7 @@ except:
 try:
     image_decoder = pickle.load(open('image_decoder.pkl', 'rb'))
     n_classes = len(image_decoder)
-    image_model = torch.load('final_models/image_model.pt', 'rb')
+    image_model = torch.load('image_model.pt')
     image_classifier = ImageClassifier(num_classes=n_classes, decoder=image_decoder)
     image_classifier.load_state_dict(image_model)
 except:
@@ -150,7 +152,7 @@ except:
 try:
     combined_decoder = pickle.load(open('combined_decoder.pkl', 'rb'))
     n_classes = len(combined_decoder)
-    combined_model = torch.load('final_models/combined_model.pt', 'rb')
+    combined_model = torch.load('combined_model.pt')
     combined_classifier = CombinedModel(ngpu=1, input_size=768, num_classes=n_classes, decoder=combined_decoder)
     combined_classifier.load_state_dict(combined_model)
 except:
@@ -184,9 +186,8 @@ def predict_text(text: TextItem):
     print(probs)
     print(classes)
     return JSONResponse(content={
-        'Category': prediction, 
-        'Probabilities': probs.tolist(), 
-        'classes': classes})
+        'Category': classes, 
+        'Probabilities': probs.tolist()})
     
 @app.post('/predict/image')
 def predict_image(image: UploadFile = File(...)):
@@ -199,9 +200,8 @@ def predict_image(image: UploadFile = File(...)):
     print(probs)
     print(classes)
     return JSONResponse(content={
-        'Category': prediction, 
-        'Probabilities': probs.tolist(), 
-        'classes': classes})
+        'Category': classes, 
+        'Probabilities': probs.tolist()})
   
 @app.post('/predict/combined')
 def predict_combined(image: UploadFile = File(...), text: str = Form(...)):
@@ -215,8 +215,8 @@ def predict_combined(image: UploadFile = File(...), text: str = Form(...)):
     print(probs)
     print(classes)
     return JSONResponse(content={
-        'Category': prediction, 
+        'Category': classes, 
         'Probabilities': probs.tolist()})
     
 if __name__ == '__main__':
-  uvicorn.run("api:app", host="0.0.0.0", port=8080)
+  uvicorn.run("api:app", host="127.0.0.1", port=8080)
