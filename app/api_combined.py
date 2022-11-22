@@ -93,39 +93,39 @@ class ImageClassifier(nn.Module):
             return self.decoder[int(torch.argmax(x, dim=1))]
 
 
-class CombinedModel(nn.Module):
-    def __init__(self, ngpu, input_size = 768, num_classes: int=2, decoder: list = None):
-        super(CombinedModel, self).__init__()
-        self.ngpu = ngpu
-        self.resnet50 = torch.hub.load('NVIDIA/DeepLearningExamples:torchhub', 'nvidia_resnet50', pretrained=True)
-        # define layers        
-        output_features = self.resnet50.fc.out_features
-        self.image_classifier = torch.nn.Sequential(self.resnet50, torch.nn.Linear(output_features, num_classes)).to(device)
-        self.text_classifier = TextClassifier(ngpu=ngpu, input_size=input_size)
-        self.main = torch.nn.Sequential(torch.nn.Linear(160, 32))             
-        self.decoder = decoder
-
-    def forward(self, image_features, text_features):
-        image_features = self.image_classifier(image_features)
-        text_features = self.text_classifier(text_features)
-        combined_features = torch.cat((image_features, text_features), 1)
-        x = self.main(combined_features)
-        return x
-
-    def predict(self, image_features, text_features):
-        with torch.no_grad():
-            x = self.forward(image_features, text_features)
-            return x
-    
-    def predict_proba(self, image_features, text_features):
-        with torch.no_grad():
-            x = self.forward(image_features, text_features)
-            return torch.softmax(x, dim=1)
-
-    def predict_classes(self, image_features, text_features):
-        with torch.no_grad():
-            x = self.forward(image_features, text_features)
-            return self.decoder[int(torch.argmax(x, dim=1))]
+#class CombinedModel(nn.Module):
+#    def __init__(self, ngpu, input_size = 768, num_classes: int=2, decoder: list = None):
+#        super(CombinedModel, self).__init__()
+#        self.ngpu = ngpu
+#        self.resnet50 = torch.hub.load('NVIDIA/DeepLearningExamples:torchhub', 'nvidia_resnet50', pretrained=True)
+#        # define layers        
+#        output_features = self.resnet50.fc.out_features
+#        self.image_classifier = torch.nn.Sequential(self.resnet50, torch.nn.Linear(output_features, num_classes)).to(device)
+#        self.text_classifier = TextClassifier(ngpu=ngpu, input_size=input_size)
+#        self.main = torch.nn.Sequential(torch.nn.Linear(160, 32))             
+#        self.decoder = decoder
+#
+#    def forward(self, image_features, text_features):
+#        image_features = self.image_classifier(image_features)
+#        text_features = self.text_classifier(text_features)
+#        combined_features = torch.cat((image_features, text_features), 1)
+#        x = self.main(combined_features)
+#        return x
+#
+#    def predict(self, image_features, text_features):
+#        with torch.no_grad():
+#            x = self.forward(image_features, text_features)
+#            return x
+#    
+#    def predict_proba(self, image_features, text_features):
+#        with torch.no_grad():
+#            x = self.forward(image_features, text_features)
+#            return torch.softmax(x, dim=1)
+#
+#    def predict_classes(self, image_features, text_features):
+#        with torch.no_grad():
+#            x = self.forward(image_features, text_features)
+#            return self.decoder[int(torch.argmax(x, dim=1))]
 
 # Don't change this, it will be useful for one of the methods in the API
 class TextItem(BaseModel):
@@ -149,14 +149,14 @@ try:
 except:
     raise OSError("No Image model found. Check that you have the encoder and the model in the correct location")
 
-try:
-    combined_decoder = pickle.load(open('combined_decoder.pkl', 'rb'))
-    n_classes = len(combined_decoder)
-    combined_model = torch.load('combined_model.pt')
-    combined_classifier = CombinedModel(ngpu=1, input_size=768, num_classes=n_classes, decoder=combined_decoder)
-    combined_classifier.load_state_dict(combined_model)
-except:
-    raise OSError("No Combined model found. Check that you have the encoder and the model in the correct location")
+#try:
+#    combined_decoder = pickle.load(open('combined_decoder.pkl', 'rb'))
+#    n_classes = len(combined_decoder)
+#    combined_model = torch.load('combined_model.pt')
+#    combined_classifier = CombinedModel(ngpu=1, input_size=768, num_classes=n_classes, decoder=combined_decoder)
+#    combined_classifier.load_state_dict(combined_model)
+#except:
+#    raise OSError("No Combined model found. Check that you have the encoder and the model in the correct location")
 
 try:
     text_processor = TextProcessor(50)
@@ -203,20 +203,20 @@ def predict_image(image: UploadFile = File(...)):
         'Category': classes, 
         'Probabilities': probs.tolist()})
   
-@app.post('/predict/combined')
-def predict_combined(image: UploadFile = File(...), text: str = Form(...)):
-    print(text)
-    pil_image = Image.open(image.file)
-    processed_image = image_processor(pil_image)
-    prediction = combined_classifier.predict(processed_image, text)
-    probs = combined_classifier.predict_proba(processed_image, text)
-    classes = combined_classifier.predict_classes(processed_image, text)
-    print(prediction)
-    print(probs)
-    print(classes)
-    return JSONResponse(content={
-        'Category': classes, 
-        'Probabilities': probs.tolist()})
+#@app.post('/predict/combined')
+#def predict_combined(image: UploadFile = File(...), text: str = Form(...)):
+#    print(text)
+#    pil_image = Image.open(image.file)
+#    processed_image = image_processor(pil_image)
+#    prediction = combined_classifier.predict(processed_image, text)
+#    probs = combined_classifier.predict_proba(processed_image, text)
+#    classes = combined_classifier.predict_classes(processed_image, text)
+#    print(prediction)
+#    print(probs)
+#    print(classes)
+#    return JSONResponse(content={
+#        'Category': classes, 
+#        'Probabilities': probs.tolist()})
     
 if __name__ == '__main__':
-  uvicorn.run("api:app", host="127.0.0.1", port=8080)
+  uvicorn.run("api_combined:app", host="127.0.0.1", port=8080)

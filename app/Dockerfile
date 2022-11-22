@@ -16,4 +16,4 @@ COPY . .
 
 EXPOSE 8080
 
-CMD ["python3", "api.py"]
+CMD ["python3", "api_combined.py"]
