@@ -12,6 +12,7 @@ import torch.nn as nn
 from pydantic import BaseModel
 from image_processor import ProcessImage
 from text_processor import TextProcessor
+from statistics import mean
 
 device = torch.device("cuda:0" if (torch.cuda.is_available()) else "cpu")
 print(device)
@@ -85,7 +86,7 @@ class ImageClassifier(nn.Module):
     def predict_proba(self, image):
         with torch.no_grad():
             x = self.forward(image)
-            return torch.softmax(x, dim=1)
+            return torch.softmax(x, dim=1) 
 
     def predict_classes(self, image):
         with torch.no_grad():
@@ -171,6 +172,10 @@ except:
 app = FastAPI()
 print("Starting server")
 
+@app.get("/")
+def read_root():
+    return {"Hajarah's app": "Welcome to FB Marketplace Ranking App" }
+
 @app.get('/healthcheck')
 def healthcheck():
   msg = "API is up and running!"  
@@ -219,4 +224,4 @@ def predict_image(image: UploadFile = File(...)):
 #        'Probabilities': probs.tolist()})
     
 if __name__ == '__main__':
-  uvicorn.run("api_combined:app", host="127.0.0.1", port=8080)
+  uvicorn.run("api_combined:app", host="0.0.0.0", port=8080)

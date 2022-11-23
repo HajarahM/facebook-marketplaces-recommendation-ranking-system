@@ -19,3 +19,4 @@ pydantic
 uvicorn
 boto3
 python-multipart
+tensorboard
