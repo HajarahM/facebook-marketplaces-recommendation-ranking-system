@@ -362,12 +362,20 @@ The breakdown of the detail steps and respective code follow below
 ### Task 1 - Pytorch Text Dataset and BERT Tokenizer + Model
 Using the previously created dataset of the Facebook Marketplace products csv cleaned file, I created the Pytorch Text Dataset that would then feed entries into the text classification model.
 The class for this torch.utils.data.dataset dataset is named 'TextDataset' and follows the following steps
+
     1. Verify that the 'cleaned_products.csv' file exists, if not it throws an error
+
     2. Otherwise, if the 'cleaned_products.csv' file exists, then program continues to load the csv file as a pandas dataframe ('self.products)
-    3. From the products dataframe, the colomns for 'main_category' and 'descriptions' are defined as 'self.labels' and self.descriptions' respectively. And number of classes is obtained by getting the length of 'self.labels'.
+
+    3. From the products dataframe, the colomns for 'main_category' and 'descriptions' are defined as 'self.labels' and self.
+    descriptions' respectively. And number of classes is obtained by getting the length of 'self.labels'.
+
     4. To assign a label to each category, I used an encoder as shown in the code below and also defined the respective decoder that will be used to display the description of the predicted category.
+
     5. I then encoded the descriptions using the Bert Tokenizer (for pretrained bert-base-uncased model) with base BertModel embedding 
+
     6. The output of the dataset is the labels in tensor format and encoded descriptions
+    
 sample code below;
 ``` python
 class TextDataset(torch.utils.data.Dataset):
