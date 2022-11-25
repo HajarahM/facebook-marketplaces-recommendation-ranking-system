@@ -471,21 +471,195 @@ def train(model, epochs=10):
 ``` 
 ** Model Results **
 ![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/Text%20Model%20Accuracy%202022-11-22%20at%2021.14.05.png)
+![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/Text%20Model%20Loss%202022-11-22%20at%2021.14.15.png)
 
 ### Task 7 - Creating an TEXT processor script
-Finally I created an image processor script (image_processor.py) that would take in an image and apply the transformations needed (in Task 1) to be fed to the model. 
-I added the dimension to the beginning of the image to make it a batch-size of 1, added code to save the image obtained from user to a 'test file' from where to would be otained for processing.
-Sample code below;
+Finally I created a text processor script (text_processor.py) that would take in the text, encodes it with BERT Tokenizer embedding and feeds the encoded text into the BERT Model.
 ```python
-class ProcessImage:
- 
-```
+class TextProcessor:
+    def __init__(self,
+                 max_length: int = 50):
 
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.model = BertModel.from_pretrained('bert-base-uncased', output_hidden_states = True)
+        self.model.eval()
+        self.max_length = max_length
+
+    def __call__(self, text):
+        encoded = self.tokenizer.batch_encode_plus([text], max_length=self.max_length, padding='max_length', truncation=True)
+        encoded = {key:torch.LongTensor(value) for key, value in encoded.items()}
+        with torch.no_grad():
+            description = self.model(**encoded).last_hidden_state.swapaxes(1,2)
+        return description
+```
 
 ## Configuring and deploying the model | Building the API
 
 ### Task 1: Setting Up the API Endpoints
+#### Image API endpoint
+The Image API section takes image from the user, then uses the ProcessImage class imported from the Image Processor containing the same transformations as used to train the model to transform the input image. It's then run through the classifier with image model to get the prediction and probabilities. 
+```python
+class ImageClassifier(nn.Module):
+    def __init__(self, 
+                 num_classes,
+                 decoder: dict = None):
+        super(ImageClassifier, self).__init__()
+        self.resnet50 = torch.hub.load('NVIDIA/DeepLearningExamples:torchhub', 'nvidia_resnet50', pretrained=True)    
+        output_features = self.resnet50.fc.out_features
+        self.linear = torch.nn.Linear(output_features, num_classes).to(device)
+        self.main = torch.nn.Sequential(self.resnet50, self.linear).to(device)
+        self.decoder = decoder
+    def forward(self, image):
+        x = self.main(image)
+        return x
+    def predict(self, image):
+        with torch.no_grad():
+            x = self.forward(image)
+            return x
+    def predict_proba(self, image):
+        with torch.no_grad():
+            x = self.forward(image)
+            return torch.softmax(x, dim=1)
+    def predict_classes(self, image):
+        with torch.no_grad():
+            x = self.forward(image)
+            return self.decoder[int(torch.argmax(x, dim=1))]
+try:
+    image_decoder = pickle.load(open('image_decoder.pkl', 'rb'))
+    n_classes = len(image_decoder)
+    image_model = torch.load('image_model.pt')
+    image_classifier = ImageClassifier(num_classes=n_classes, decoder=image_decoder)
+    image_classifier.load_state_dict(image_model)
+except OSError: 
+    raise OSError("No Image model found. Check that you have the encoder and the model in the correct location")
+try:
+    image_processor = ProcessImage()
+except:
+    raise OSError("No Image processor found. Check that you have the encoder and the model in the correct location")
+app = FastAPI()
+print("Starting server")
+@app.post('/predict/image')
+def predict_image(image: UploadFile = File(...)):
+    pil_image = Image.open(image.file)
+    processed_image = image_processor(pil_image)
+    prediction = image_classifier.predict(processed_image)
+    probs = image_classifier.predict_proba(processed_image)
+    classes = image_classifier.predict_classes(processed_image)
+    print(prediction)
+    print(probs)
+    print(classes)
+    return JSONResponse(content={
+        'Category': classes, 
+        'Probabilities': probs.tolist()}) 
+if __name__ == '__main__':
+  uvicorn.run("api_image:app", host="127.0.0.1", port=8080)
+```
+#### Text API endpoint
+The Text API section takes text from the user using pydantic BaseModel. It's then run through the text classifier with text model to get the prediction and probabilities. 
+```python
+class TextClassifier(nn.Module):
+    def __init__(self,
+                ngpu,
+                input_size: int = 768,
+                decoder: dict = None):
+        super(TextClassifier, self).__init__()
+        self.ngpu = ngpu
+        self.main = torch.nn.Sequential(torch.nn.Conv1d(input_size, 256, kernel_size=3, stride=1, padding=1),
+                                  torch.nn.ReLU(),
+                                  torch.nn.MaxPool1d(kernel_size=2, stride=2),
+                                  torch.nn.Conv1d(256, 128, kernel_size=3, stride=1, padding=1),
+                                  torch.nn.ReLU(),
+                                  torch.nn.MaxPool1d(kernel_size=2, stride=2),
+                                  torch.nn.Conv1d(128, 64, kernel_size=3, stride=1, padding=1),
+                                  torch.nn.ReLU(),
+                                  torch.nn.MaxPool1d(kernel_size=2, stride=2),
+                                  torch.nn.Conv1d(64, 32, kernel_size=3, stride=1, padding=1),
+                                  torch.nn.ReLU(),
+                                  torch.nn.Flatten(),
+                                  torch.nn.Linear(192 , 32),
+                                  nn.ReLU(),
+                                  nn.Linear(32, 13))        
+        self.decoder = decoder
+    def forward(self, text):
+        x = self.main(text)
+        return x
+    def predict(self, text):
+        with torch.no_grad():
+            x = self.forward(text)
+            return x
+    def predict_proba(self, text):
+        with torch.no_grad():
+            x = self.forward(text)
+            return torch.softmax(x, dim=1)
+    def predict_classes(self, text):
+        with torch.no_grad():
+            x = self.forward(text)
+            return self.decoder[int(torch.argmax(x, dim=1))]
+class TextItem(BaseModel):
+    text: str
+try:
+    text_decoder = pickle.load(open('text_decoder.pkl', 'rb'))
+    n_classes = len(text_decoder)
+    text_model = torch.load('text_model.pt')
+    text_classifier = TextClassifier(ngpu=2, decoder=text_decoder)
+    text_classifier.load_state_dict(text_model)
+except:
+    raise OSError("No Text model found. Check that you have the decoder and the model in the correct location")
+try:
+    text_processor = TextProcessor(50)
+except:
+    raise OSError("No Text processor found. Check that you have the encoder and the model in the correct location")
 
-### Task 2: Deploying the API
+app = FastAPI()
+print("Starting server")
+@app.post('/predict/text')
+def predict_text(text: TextItem):
+    processed_text = text_processor(text.text)
+    prediction = text_classifier.predict(processed_text)
+    probs = text_classifier.predict_proba(processed_text)
+    classes = text_classifier.predict_classes(processed_text)
+    print(prediction)
+    print(probs)
+    print(classes)
+    return JSONResponse(content={
+        'Category': classes, 
+        'Probabilities': probs.tolist()})
+    
+if __name__ == '__main__':
+  uvicorn.run("api_text:app", host="127.0.0.1", port=8080)
+```
+
+### Task 2: Deploying the API to DOCKER
+Docker File
+```python
+    FROM python:3.8
+    WORKDIR /app
+    RUN apt-get update
+    RUN apt-get install \
+        'ffmpeg'\
+        'libsm6'\
+        'libxext6'  -y
+    RUN pip3 install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
+    COPY requirements.txt .
+    RUN pip3 install -r requirements.txt
+    COPY . .
+    EXPOSE 8080
+    CMD ["python3", "api_combined.py"]
+```
+The APP dependencies deployed through the requirements.txt file include: pandas, numpy, Pillow, matplotlib, imagesize, sklearn,
+torch, torchvision, transformers, scipy, functions, scikit-learn, docker, bert, bert-tensorflow, tokenizers, fastapi, pydantic
+uvicorn, boto3, python-multipart and tensorboard
+
+The decoders are used to translate the output predictions back into named categories (in text format)
 
 ### Task 3: Testing the API
+The API App testing results are as shown in screenshots below
+![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/API%20App%20homepage2022-11-23%20at%2015.06.33.png)
+![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/FAST%20API%20docs%202022-11-23%20at%2015.06.46.png)
+
+#### Image Prediction
+![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/Predict%20Image%20upload%202022-11-23%20at%2015.10.19.png)
+![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/Predict%20Image%20Result%202022-11-23%20at%2015.10.34.png)
+
+#### Text Prediction
+![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/Predict%20Text%20test%20result%202022-11-23%20at%2015.08.02.png)

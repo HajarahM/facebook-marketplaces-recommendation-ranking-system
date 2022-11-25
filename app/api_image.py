@@ -46,9 +46,6 @@ class ImageClassifier(nn.Module):
             x = self.forward(image)
             return self.decoder[int(torch.argmax(x, dim=1))]
 
-class TextItem(BaseModel):
-    text: str
-
 try:
     image_decoder = pickle.load(open('image_decoder.pkl', 'rb'))
     n_classes = len(image_decoder)
