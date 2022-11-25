@@ -469,8 +469,8 @@ def train(model, epochs=10):
     #save pickle file of decoder dictionary
     pickle.dump(dataset.decoder, open('text_decoder.pkl', 'wb'))
 ``` 
-** Model Results 
-![alt text](README images/Text Model Accuracy 2022-11-22 at 21.14.05.png)
+** Model Results **
+![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/Text%20Model%20Accuracy%202022-11-22%20at%2021.14.05.png)
 
 ### Task 7 - Creating an TEXT processor script
 Finally I created an image processor script (image_processor.py) that would take in an image and apply the transformations needed (in Task 1) to be fed to the model. 
