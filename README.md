@@ -135,7 +135,7 @@ def clean_image_data(original_image_path):
 if __name__ == '__main__':
     clean_image_data("./images/")
 ```      
-## Create Vision Model
+## Creating the Vision Model
 I followed the following steps to create a Vision model - training it using Facebook Marketplace pictures to predict the image categories.
     1. Created a Pytorch dataset and built a CNN (Convolutional Neural Network) model with a training loop 
     2. Fine-tuned using a pre-trained model
@@ -149,7 +149,7 @@ During the cleaning of the two csv files (products csv and images csv), I had me
 The class for this torch.utils.data.dataset dataset is named 'ProductsDataset' and follows the following steps
     1. Verify that the 'clean_images' folder exists, if not it throws an error
     2. Otherwise, if the 'clean_images' folder exists, then program continues to load the 'cleaned_images' csv as a pandas dataframe ('self.products)
-    3.From the products dataframe, the colomns for 'main_category' and 'descriptions' are defined as 'self.labels' and self.descriptions' respectively. And number of classes is obtained by getting the length of 'self.labels'.
+    3. From the products dataframe, the colomns for 'main_category' and 'descriptions' are defined as 'self.labels' and self.descriptions' respectively. And number of classes is obtained by getting the length of 'self.labels'.
     4. The source to be used for naming the files is also defined from 'image_id' colomn as self.files.
     5. To assign a label to each category, I used an encoder as shown in the code below and also defined the respective decoder that will be used to display the description of the predicted category.
     6. I then used image transformations to resize, center, crop, turn to Tensor and normalize with specified mean and standard deviation for both RGB and grey images.
@@ -230,9 +230,9 @@ class CNN(torch.nn.Module):
 ``` 
 This resulted in an accuracy of average 0.2
 
-### Task 3 - Buidling the training loop
+### Task 3 - Building the training loop
 I then defined a 'train' function which takes in the model as its 1st positional argument as well as number of epochs it will train for.
-In this function, there is a loop interating through the number of batches(to be specified) of the dataset while updating the model's paramenters. It loops through the entire dataset as many times as the number of epochs.
+In this function, there is a loop interating through the number of batches(to be specified) of the dataset while updating the model's parameters. It loops through the entire dataset as many times as the number of epochs.
 The loss is printed after every prediction and graphically displayed on a TensorBoard.
 ``` python
 def train(model, epochs=20):
@@ -281,7 +281,7 @@ def train(model, epochs=5):
             p_bar.set_description(f"Epoch = {epoch+1}/{epochs}. Acc = {Accuracy}, Losses = {Losses}")
 ```
 ### Task 5 - Saving the weights whilst training
-Within the epoch training loop, I created a folder named 'model_evaluation' and within this programmatically created a time-stamed folder (date+hour) for each model by epoch number within a sub-folder called 'wesights'. Due to the potential massive size of parameters, this folder was added to 'gitignore file.
+Within the epoch training loop, I created a folder named 'model_evaluation' and within this programmatically created a time-stamed folder (date+hour) for each model by epoch number within a sub-folder called 'weights'. Due to the potential massive size of parameters, this folder was added to 'gitignore file.
 ```python
 #create dated directory and weights folder
         date_directory_path = create_date_directory('./model_evaluation')
@@ -355,3 +355,137 @@ class ProcessImage:
         print(type(image), image.shape)
         return image 
 ```
+## Creating the Text Model
+I followed the same steps as the Vision model to create the Text model - training it using Facebook Marketplace Ad descriptions to predict the Ad categories.
+The breakdown of the detail steps and respective code follow below
+
+### Task 1 - Pytorch Text Dataset and BERT Tokenizer + Model
+Using the previously created dataset of the Facebook Marketplace products csv cleaned file, I created the Pytorch Text Dataset that would then feed entries into the text classification model.
+The class for this torch.utils.data.dataset dataset is named 'TextDataset' and follows the following steps
+    1. Verify that the 'cleaned_products.csv' file exists, if not it throws an error
+    2. Otherwise, if the 'cleaned_products.csv' file exists, then program continues to load the csv file as a pandas dataframe ('self.products)
+    3. From the products dataframe, the colomns for 'main_category' and 'descriptions' are defined as 'self.labels' and self.descriptions' respectively. And number of classes is obtained by getting the length of 'self.labels'.
+    4. To assign a label to each category, I used an encoder as shown in the code below and also defined the respective decoder that will be used to display the description of the predicted category.
+    5. I then encoded the descriptions using the Bert Tokenizer (for pretrained bert-base-uncased model) with base BertModel embedding 
+    6. The output of the dataset is the labels in tensor format and encoded descriptions
+sample code below;
+``` python
+class TextDataset(torch.utils.data.Dataset):
+    def __init__(self,
+                 root_dir: str = 'cleaned_products.csv',
+                 max_length: int=50):
+        self.root_dir = root_dir
+    # Get cleaned product list, extract category labels and description
+        if not os.path.exists(self.root_dir):
+            raise FileNotFoundError(f"The file {self.root_dir} does not exist")
+        else:
+            self.products = pd.read_csv(self.root_dir, lineterminator='\n')
+        self.labels = self.products['main_category'].to_list()
+        self.descriptions = self.products['product_description'].to_list()
+        self.max_length = max_length
+        self.num_classes = len(set(self.labels))
+        #Encoder/Decoder
+        self.encoder = {y: x for (x, y) in enumerate(set(self.labels))}
+        self.decoder = {x: y for (x, y) in enumerate(set(self.labels))}
+        #Bert tokenizer and model
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.model = BertModel.from_pretrained('bert-base-uncased', output_hidden_states = True)
+        self.model.eval()
+
+    def __getitem__(self, index):
+        label = self.labels[index]
+        label = self.encoder[label]
+        label = torch.as_tensor(label)
+        sentence = self.descriptions[index]
+        encoded = self.tokenizer.batch_encode_plus([sentence], max_length=self.max_length, padding='max_length', truncation=True)
+        encoded = {key:torch.LongTensor(value) for key, value in encoded.items()}
+        with torch.no_grad():
+            description = self.model(**encoded).last_hidden_state.swapaxes(1,2)
+        description = description.squeeze(0)
+        return description, label
+
+    def __len__(self):
+        return len(self.labels)
+```  
+### Task 2 - Building a CNN - Convolutional Neural Network
+I then created a CNN class, defining each step with the following layers ...
+```python
+class Classifier(nn.Module, TextDataset):
+    def __init__(self, ngpu, input_size: int = 768, num_classes: int = 2):
+        super(Classifier, self).__init__()
+        num_classes = self.num_classes
+        self.ngpu = ngpu
+        self.main = nn.Sequential(nn.Conv1d(input_size, 256, kernel_size=3, stride=1, padding=1),
+                                  nn.ReLU(),
+                                  nn.MaxPool1d(kernel_size=2, stride=2),
+                                  nn.Conv1d(256, 128, kernel_size=3, stride=1, padding=1),
+                                  nn.ReLU(),
+                                  nn.MaxPool1d(kernel_size=2, stride=2),
+                                  nn.Conv1d(128, 64, kernel_size=3, stride=1, padding=1),
+                                  nn.ReLU(),
+                                  nn.MaxPool1d(kernel_size=2, stride=2),
+                                  nn.Conv1d(64, 32, kernel_size=3, stride=1, padding=1),
+                                  nn.ReLU(),
+                                  nn.Flatten(),
+                                  nn.Linear(192 , 32),
+                                  nn.ReLU(),
+                                  nn.Linear(32, num_classes))
+    def forward(self, inp):
+        x = self.main(inp)
+        return x
+``` 
+
+### Task 3 - Building the training loop
+I then defined a 'train' function which takes in the model as its 1st positional argument as well as number of epochs it will train for.
+In this function, there is a loop interating through the number of batches from the dataset while updating the model's parameters. It loops through the entire dataset as many times as the number of epochs. The loss and accuracy is printed after every prediction and graphically displayed on a TensorBoard, then final trained model (weights) is saved as text_model.pt in the specified folder along with the respective text decoder.
+``` python
+def train(model, epochs=10):
+    optimiser = torch.optim.Adam(model.parameters(), lr=0.001)
+    writer = SummaryWriter()
+    criteria = torch.nn.CrossEntropyLoss()
+    batch_idx = 0
+    losses = []
+    for epoch in range(epochs):
+        p_bar = tqdm(enumerate(dataloader), total=len(dataloader))
+        hist_accuracy = []
+        accuracy = 0
+        for i, batch in p_bar:
+            data, labels = batch
+            data.to(device)
+            labels.to(device)
+            optimiser.zero_grad()
+            prediction = model(data)
+            loss = criteria(prediction, labels)
+            loss.backward()            
+            optimiser.step() # optimisation step            
+            writer.add_scalar('Loss', loss.item(), batch_idx)
+            accuracy = round(torch.sum(torch.argmax(prediction, dim=1) == labels).item()/len(labels), 2)
+            writer.add_scalar('Accuracy', accuracy, batch_idx)
+            hist_accuracy.append(accuracy)
+            batch_idx += 1            
+            losses.append(loss.item())
+            p_bar.set_description(f"Epoch = {epoch+1}/{epochs}. Acc = {accuracy}, Losses = {losses}")
+    torch.save(model.state_dict(), 'final_models/text_model.pt')
+    #save pickle file of decoder dictionary
+    pickle.dump(dataset.decoder, open('text_decoder.pkl', 'wb'))
+``` 
+** Model Results 
+![alt text](README images/Text Model Accuracy 2022-11-22 at 21.14.05.png)
+
+### Task 7 - Creating an TEXT processor script
+Finally I created an image processor script (image_processor.py) that would take in an image and apply the transformations needed (in Task 1) to be fed to the model. 
+I added the dimension to the beginning of the image to make it a batch-size of 1, added code to save the image obtained from user to a 'test file' from where to would be otained for processing.
+Sample code below;
+```python
+class ProcessImage:
+ 
+```
+
+
+## Configuring and deploying the model | Building the API
+
+### Task 1: Setting Up the API Endpoints
+
+### Task 2: Deploying the API
+
+### Task 3: Testing the API

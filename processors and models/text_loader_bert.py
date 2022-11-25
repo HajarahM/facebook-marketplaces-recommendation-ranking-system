@@ -77,7 +77,7 @@ class TextDataset(torch.utils.data.Dataset):
 class Classifier(nn.Module, TextDataset):
     def __init__(self, ngpu, input_size: int = 768, num_classes: int = 2):
         super(Classifier, self).__init__()
-        num_classes = len(TextDataset())
+        num_classes = self.num_classes
         self.ngpu = ngpu
         self.main = nn.Sequential(nn.Conv1d(input_size, 256, kernel_size=3, stride=1, padding=1),
                                   nn.ReLU(),
