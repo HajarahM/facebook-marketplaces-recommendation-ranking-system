@@ -669,5 +669,5 @@ The API App testing results are as shown in screenshots below
 ![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/Predict%20Image%20upload%202022-11-23%20at%2015.10.19.png)
 ![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/Predict%20Image%20Result%202022-11-23%20at%2015.10.34.png)
 
-#### Text Prediction
+#### Text Prediction 
 ![alt text](https://github.com/HajarahM/facebook-marketplaces-recommendation-ranking-system/blob/main/README%20images/Predict%20Text%20test%20result%202022-11-23%20at%2015.08.02.png)
